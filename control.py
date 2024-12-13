@@ -146,9 +146,9 @@ def insert_into_database(student_id, assignment_id, test_id, feedback, feedback_
             conn.close()
 
 def main():
-    student_code_dir = os.path.expanduser('$HOME/studentcode')
-    autograder_output_file = os.path.expanduser('$HOME/autograder_output.txt')
-    readme_file = os.path.expanduser('$HOME/README.md')
+    student_code_dir = os.path.expanduser('$HOME/logs/studentcode')
+    autograder_output_file = os.path.expanduser('$HOME/logs/autograder_output.txt')
+    readme_file = os.path.expanduser('$HOME/logs/README.md')
 
     student_id = extract_student_id()
 
