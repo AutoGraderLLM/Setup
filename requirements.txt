@@ -1,0 +1,30 @@
+#!/bin/bash
+
+# Navigate to the .setup directory
+cd .setup || { echo ".setup directory not found!"; exit 1; }
+
+# Step 1: Run create_db.py
+echo "Running create_db.py..."
+python3 create_db.py
+if [ $? -ne 0 ]; then
+  echo "Error running create_db.py. Exiting."
+  exit 1
+fi
+
+# Step 2: Run verify_db.py
+echo "Running verify_db.py..."
+python3 verify_db.py
+if [ $? -ne 0 ]; then
+  echo "Error running verify_db.py. Exiting."
+  exit 1
+fi
+
+# Step 3: Move control.py to $HOME
+echo "Moving control.py to $HOME..."
+mv control.py "$HOME"
+if [ $? -ne 0 ]; then
+  echo "Error moving control.py to $HOME. Exiting."
+  exit 1
+fi
+
+echo "All steps completed successfully!"
