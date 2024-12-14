@@ -1,5 +1,19 @@
 #!/bin/bash
 
+# Ensure pip is available
+if ! command -v pip &> /dev/null; then
+  echo "pip not found. Please ensure pip is installed and available in your PATH."
+  exit 1
+fi
+
+# Install Rich library
+echo "Installing Rich library..."
+pip install --user rich
+if [ $? -ne 0 ]; then
+  echo "Failed to install Rich. Exiting."
+  exit 1
+fi
+
 # Navigate to the .setup directory
 cd .setup || { echo ".setup directory not found!"; exit 1; }
 
