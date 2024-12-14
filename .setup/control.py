@@ -3,6 +3,7 @@ import sqlite3
 import subprocess
 import sys
 
+
 def extract_student_id():
     """
     Extract the student's GitHub repository name or directory from the command-line argument.
@@ -74,6 +75,8 @@ def send_data_to_ollama(student_code_data, autograder_output, professor_instruct
     except Exception as e:
         print(f"Failed to run Ollama model: {e}")
         return {"error": str(e)}
+
+
 def write_feedback_to_file(student_id, assignment_id, feedback):
     """Write feedback into a Markdown file."""
     feedback_file_path = f"/home/{os.getenv('USER')}/feedback.md"
@@ -86,8 +89,7 @@ def write_feedback_to_file(student_id, assignment_id, feedback):
     except Exception as e:
         print(f"Failed to write to Feedback.md: {e}")
         return None
-        if conn:
-            conn.close()
+
 
 def insert_into_database(student_id, assignment_id, test_id, feedback, feedback_file_path, student_code_dir, autograder_output_file):
     """Insert all data into SQLite database."""
@@ -145,10 +147,11 @@ def insert_into_database(student_id, assignment_id, test_id, feedback, feedback_
         if conn:
             conn.close()
 
+
 def main():
     student_code_dir = os.path.expanduser('~/logs/studentcode')
     autograder_output_file = os.path.expanduser('~/logs/autograder_output.txt')
-readme_file = os.path.expanduser('~/logs/README.md')
+    readme_file = os.path.expanduser('~/logs/README.md')
 
     student_id = extract_student_id()
 
