@@ -5,173 +5,205 @@ import sys
 
 
 def extract_student_id():
-    """
-    Extract the student's GitHub repository name or directory from the command-line argument.
-    """
-    if len(sys.argv) > 1:
-        # Assuming the repo name is passed as an argument
-        user_repo = sys.argv[1]
-        print(f"Repository or Directory Name: {user_repo}")
-        return user_repo
-    else:
-        print("Error: No repository name provided.")
-        sys.exit(1)
+	"""
+	Extract the student's GitHub repository name or directory from the command-line argument.
+	This identifies the student submission being processed.
+	"""
+	if len(sys.argv) > 1:
+		# Check if a command-line argument (repository name) is provided
+		user_repo = sys.argv[1]
+		print(f"Repository or Directory Name: {user_repo}")
+		return user_repo
+	else:
+		print("Error: No repository name provided.")
+		sys.exit(1)  # Exit the script if no argument is provided
 
 
 def fetch_data_from_directories(student_code_dir, autograder_output_file, readme_file):
-    """Fetch data from the specified directories with encoding handling."""
-    student_code_data = ""
-    for filename in os.listdir(student_code_dir):
-        file_path = os.path.join(student_code_dir, filename)
-        if os.path.isfile(file_path):
-            try:
-                with open(file_path, 'r', encoding='utf-8') as file:
-                    student_code_data += f"File: {filename}\n{file.read()}\n\n"
-            except UnicodeDecodeError:
-                try:
-                    with open(file_path, 'r', encoding='ISO-8859-1') as file:
-                        student_code_data += f"File: {filename}\n{file.read()}\n\n"
-                except UnicodeDecodeError:
-                    print(f"Warning: Could not read file {filename} due to encoding issues.")
+	"""
+	Read student code, autograder output, and professor instructions from specified files.
+	Handles potential encoding issues gracefully.
+	"""
+	student_code_data = ""  # Initialize an empty string to store student code data
 
-    try:
-        with open(autograder_output_file, 'r', encoding='utf-8') as file:
-            autograder_output = file.read()
-    except UnicodeDecodeError:
-        with open(autograder_output_file, 'r', encoding='ISO-8859-1') as file:
-            autograder_output = file.read()
+	# Iterate through all files in the student code directory
+	for filename in os.listdir(student_code_dir):
+		file_path = os.path.join(student_code_dir, filename)
+		if os.path.isfile(file_path):
+			try:
+				# Try reading the file with UTF-8 encoding
+				with open(file_path, 'r', encoding='utf-8') as file:
+					student_code_data += f"File: {filename}\n{file.read()}\n\n"
+			except UnicodeDecodeError:
+				# If UTF-8 fails, try with ISO-8859-1 encoding
+				try:
+					with open(file_path, 'r', encoding='ISO-8859-1') as file:
+						student_code_data += f"File: {filename}\n{file.read()}\n\n"
+				except UnicodeDecodeError:
+					print(f"Warning: Could not read file {filename} due to encoding issues.")
 
-    try:
-        with open(readme_file, 'r', encoding='utf-8') as file:
-            professor_instructions = file.read()
-    except UnicodeDecodeError:
-        with open(readme_file, 'r', encoding='ISO-8859-1') as file:
-            professor_instructions = file.read()
+	# Read the autograder output
+	try:
+		with open(autograder_output_file, 'r', encoding='utf-8') as file:
+			autograder_output = file.read()
+	except UnicodeDecodeError:
+		with open(autograder_output_file, 'r', encoding='ISO-8859-1') as file:
+			autograder_output = file.read()
 
-    return student_code_data, autograder_output, professor_instructions
+	# Read the professor's README instructions
+	try:
+		with open(readme_file, 'r', encoding='utf-8') as file:
+			professor_instructions = file.read()
+	except UnicodeDecodeError:
+		with open(readme_file, 'r', encoding='ISO-8859-1') as file:
+			professor_instructions = file.read()
+
+	return student_code_data, autograder_output, professor_instructions
 
 
 def send_data_to_ollama(student_code_data, autograder_output, professor_instructions):
-    """Send combined data to the Ollama model."""
-    prompt = (
-        f"DO NOT CORRECT THE CODE!!! ONLY PROVIDE Question-based guided FEEDBACK BASED ON THIS:\n"
-        f"**Student Code:**\n{student_code_data}\n\n"
-        f"**Autograder Output:**\n{autograder_output}\n\n"
-        f"**Professor Instructions:**\n{professor_instructions}\n\n"
-    )
+	"""
+	Send combined data to the Ollama model for feedback generation.
+	The model provides guided, question-based feedback without correcting the code.
+	"""
+	# Construct the input prompt with student code, autograder output, and professor instructions
+	prompt = (
+		f"DO NOT CORRECT THE CODE!!! ONLY PROVIDE Question-based guided FEEDBACK BASED ON THIS:\n"
+		f"**Student Code:**\n{student_code_data}\n\n"
+		f"**Autograder Output:**\n{autograder_output}\n\n"
+		f"**Professor Instructions:**\n{professor_instructions}\n\n"
+	)
 
-    try:
-        result = subprocess.run(
-            ['ollama', 'run', 'ux1'],
-            input=prompt,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
-        if result.returncode != 0:
-            print(f"Error running Ollama: {result.stderr}")
-            return {"error": result.stderr}
-        return {"response": result.stdout}
-    except Exception as e:
-        print(f"Failed to run Ollama model: {e}")
-        return {"error": str(e)}
+	try:
+		# Run the Ollama model with the constructed prompt
+		result = subprocess.run(
+			['ollama', 'run', 'ux1'],  # Command to execute the model
+			input=prompt,  # Input prompt for the model
+			stdout=subprocess.PIPE,
+			stderr=subprocess.PIPE,
+			text=True
+		)
+		if result.returncode != 0:
+			# If Ollama returns an error, print the error message
+			print(f"Error running Ollama: {result.stderr}")
+			return {"error": result.stderr}
+		return {"response": result.stdout}  # Return the model's output
+	except Exception as e:
+		print(f"Failed to run Ollama model: {e}")
+		return {"error": str(e)}  # Handle unexpected exceptions
 
 
 def write_feedback_to_file(student_id, assignment_id, feedback):
-    """Write feedback into a Markdown file."""
-    feedback_file_path = f"/home/{os.getenv('USER')}/feedback.md"
-    try:
-        with open(feedback_file_path, 'w', encoding='utf-8') as file:
-            file.write(f"# Feedback for {student_id}\n\n")
-            file.write(feedback)
-        print(f"Feedback saved to {feedback_file_path}")
-        return feedback_file_path
-    except Exception as e:
-        print(f"Failed to write to Feedback.md: {e}")
-        return None
+	"""
+	Write the feedback generated by the model into a Markdown file.
+	Saves the file in the user's home directory.
+	"""
+	feedback_file_path = f"/home/{os.getenv('USER')}/feedback.md"
+	try:
+		with open(feedback_file_path, 'w', encoding='utf-8') as file:
+			# Write formatted feedback to the file
+			file.write(f"# Feedback for {student_id}\n\n")
+			file.write(feedback)
+		print(f"Feedback saved to {feedback_file_path}")
+		return feedback_file_path  # Return the file path for future reference
+	except Exception as e:
+		print(f"Failed to write to Feedback.md: {e}")
+		return None
 
 
 def insert_into_database(student_id, assignment_id, test_id, feedback, feedback_file_path, student_code_dir, autograder_output_file):
-    """Insert all data into SQLite database."""
-    db_path = os.path.join(os.getenv("HOME"), "agllmdatabase.db")  # Updated database path
-    conn = None
+	"""
+	Insert student submissions, autograder output, and feedback into a SQLite database.
+	Links all data using a submission ID.
+	"""
+	db_path = os.path.join(os.getenv("HOME"), "agllmdatabase.db")  # Path to the SQLite database
+	conn = None
 
-    try:
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
+	try:
+		conn = sqlite3.connect(db_path)  # Connect to the SQLite database
+		cursor = conn.cursor()
 
-        # Insert student code into submissions table
-        for filename in os.listdir(student_code_dir):
-            file_path = os.path.join(student_code_dir, filename)
-            if os.path.isfile(file_path):
-                with open(file_path, 'r', encoding='utf-8') as file:
-                    code_content = file.read()
-                cursor.execute(
-                    '''
-                    INSERT INTO submissions (student_repo, assignment_id, code, submitted_at)
-                    VALUES (?, ?, ?, datetime('now', 'utc'))
-                    ''',
-                    (student_id, assignment_id, code_content)
-                )
+		# Insert student code into the submissions table
+		for filename in os.listdir(student_code_dir):
+			file_path = os.path.join(student_code_dir, filename)
+			if os.path.isfile(file_path):
+				with open(file_path, 'r', encoding='utf-8') as file:
+					code_content = file.read()
+				cursor.execute(
+					'''
+					INSERT INTO submissions (student_repo, assignment_id, code, submitted_at)
+					VALUES (?, ?, ?, datetime('now', 'utc'))
+					''',
+					(student_id, assignment_id, code_content)
+				)
 
-        # Retrieve the last inserted submission ID for linking feedback and autograder outputs
-        submission_id = cursor.lastrowid
+		submission_id = cursor.lastrowid  # Get the submission ID for further linking
 
-        # Insert autograder output into autograder_outputs table
-        with open(autograder_output_file, 'r', encoding='utf-8') as file:
-            autograder_output = file.read()
-        cursor.execute(
-            '''
-            INSERT INTO autograder_outputs (submission_id, output, generated_at)
-            VALUES (?, ?, datetime('now', 'utc'))
-            ''',
-            (submission_id, autograder_output)
-        )
+		# Insert autograder output into the database
+		with open(autograder_output_file, 'r', encoding='utf-8') as file:
+			autograder_output = file.read()
+		cursor.execute(
+			'''
+			INSERT INTO autograder_outputs (submission_id, output, generated_at)
+			VALUES (?, ?, datetime('now', 'utc'))
+			''',
+			(submission_id, autograder_output)
+		)
 
-        # Insert feedback into feedback table
-        cursor.execute(
-            '''
-            INSERT INTO feedback (submission_id, feedback_text, generated_at)
-            VALUES (?, ?, datetime('now', 'utc'))
-            ''',
-            (submission_id, feedback)
-        )
+		# Insert feedback into the feedback table
+		cursor.execute(
+			'''
+			INSERT INTO feedback (submission_id, feedback_text, generated_at)
+			VALUES (?, ?, datetime('now', 'utc'))
+			''',
+			(submission_id, feedback)
+		)
 
-        conn.commit()
-        print("Data successfully inserted into the database.")
+		conn.commit()  # Commit changes to the database
+		print("Data successfully inserted into the database.")
 
-    except sqlite3.Error as e:
-        print(f"SQLite error: {e}")
-
-    finally:
-        if conn:
-            conn.close()
+	except sqlite3.Error as e:
+		print(f"SQLite error: {e}")  # Handle database errors
+	finally:
+		if conn:
+			conn.close()  # Ensure the database connection is closed
 
 
 def main():
-    student_code_dir = os.path.expanduser('~/logs/studentcode')
-    autograder_output_file = os.path.expanduser('~/logs/autograder_output.txt')
-    readme_file = os.path.expanduser('~/logs/README.md')
+	"""
+	Main function to execute the pipeline:
+	- Extract student information
+	- Fetch data
+	- Send data to the model
+	- Write feedback
+	- Insert data into the database
+	"""
+	# Define paths for logs and student code
+	student_code_dir = os.path.expanduser('~/logs/studentcode')
+	autograder_output_file = os.path.expanduser('~/logs/autograder_output.txt')
+	readme_file = os.path.expanduser('~/logs/README.md')
 
-    student_id = extract_student_id()
+	student_id = extract_student_id()  # Extract student ID (repository name)
 
-    assignment_id = 101
-    test_id = 1001
+	assignment_id = 101
+	test_id = 1001
 
-    student_code_data, autograder_output, professor_instructions = fetch_data_from_directories(
-        student_code_dir, autograder_output_file, readme_file
-    )
+	# Fetch data from directories
+	student_code_data, autograder_output, professor_instructions = fetch_data_from_directories(
+		student_code_dir, autograder_output_file, readme_file
+	)
 
-    model_response = send_data_to_ollama(student_code_data, autograder_output, professor_instructions)
+	# Send data to Ollama and get feedback
+	model_response = send_data_to_ollama(student_code_data, autograder_output, professor_instructions)
 
-    if "error" not in model_response:
-        feedback = model_response.get("response", "No feedback generated.")
-        feedback_file_path = write_feedback_to_file(student_id, assignment_id, feedback)
-        if feedback_file_path:
-            insert_into_database(student_id, assignment_id, test_id, feedback, feedback_file_path, student_code_dir, autograder_output_file)
-    else:
-        print("Error in generating feedback:", model_response["error"])
+	if "error" not in model_response:
+		feedback = model_response.get("response", "No feedback generated.")
+		feedback_file_path = write_feedback_to_file(student_id, assignment_id, feedback)
+		if feedback_file_path:
+			insert_into_database(student_id, assignment_id, test_id, feedback, feedback_file_path, student_code_dir, autograder_output_file)
+	else:
+		print("Error in generating feedback:", model_response["error"])
 
 
 if __name__ == "__main__":
-    main()
+	main()
