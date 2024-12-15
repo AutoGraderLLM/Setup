@@ -1,4 +1,4 @@
-# Modelfile for Cody
+# Modelfile for ux1
 FROM llama3.2
 
 PARAMETER temperature .4
