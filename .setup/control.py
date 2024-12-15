@@ -75,7 +75,7 @@ def send_data_to_ollama(student_code_data, autograder_output, professor_instruct
 	"""
 	Send combined data (student code, autograder output, professor instructions) to the Ollama model.
 	
-	The Ollama model is a subprocess call that takes a prompt as input and returns a response.
+	The Ollama model ux1 is a subprocess call that takes a prompt as input and returns a response.
 	If an error occurs, it returns a dictionary containing the error message.
 	Otherwise, it returns a dictionary with the response.
 	"""
